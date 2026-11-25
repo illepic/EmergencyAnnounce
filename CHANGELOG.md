@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Choose where the group message goes in a raid: raid chat (default), raid warning, your own subgroup only, or nothing. Options > Announce > In a raid, or `/ea raid <raid|warning|subgroup|off>`. Raid warning needs raid leader or assistant; otherwise the message goes to raid chat.
+- Spells are matched by the game's own spell name, so every rank counts, including ranks WoW: Forever adds.
+- Removed the repeat delay setting (and `/ea throttle`). Each successful cast is announced once, and these spells' cooldowns already keep announcements apart.
+
 ## 1.2.2
 
 - Bump for publishing.

@@ -46,16 +46,15 @@ Announced to your group. Not in a group, nothing is sent, since there's no group
 | Rogue | Evasion | `evasion` | Off |
 | Hunter | Deterrence | `deterrence` | Off |
 
-You only see your own class's spells. Every rank of each spell is covered.
+You only see your own class's spells. Every rank of each spell counts.
 
 ## Features
 
 - **Only successful casts are announced**, for both kinds. Pressing the key repeatedly, being out of range or on cooldown, or being interrupted sends nothing.
-- **No spam.** The same spell on the same person is announced at most once every 10 seconds (you can change this).
 - **Whispers go to real players only**, never to you and never to NPCs. Only protective cooldowns on others are whispered.
-- **Party, raid or instance chat** is picked for you. Not in a group, a protective cooldown on someone is only whispered to them, and your own defensive cooldowns aren't announced.
+- **Party, raid or instance chat** is picked for you, and in a raid you choose raid chat, raid warning, your own subgroup or nothing. Not in a group, a protective cooldown on someone is only whispered to them, and your own defensive cooldowns aren't announced.
 - **Separate wording** for protective cooldowns on others and for your own defensive cooldowns.
-- **Works in any client language.** Spells are matched by spell ID.
+- **Works in any client language.** Spells are matched by the game's own spell names.
 - **Options page and profiles.** Esc > Options > AddOns > EmergencyAnnounce. Spell icons, the game's own spell descriptions on hover, and live previews of your messages in chat colours. Share one setup across characters or keep one per character.
 
 ## Party, raid and instance groups
@@ -65,9 +64,20 @@ The group message goes to whichever chat fits the group you're in at that moment
 | You're in | Group message goes to |
 | --- | --- |
 | A party | Party chat |
-| A raid | Raid chat (the whole raid) |
+| A raid | Your choice (see below); raid chat by default |
 | A group the game made for you (dungeon finder, battleground) | Instance chat |
 | Not in a group | No group message. A protective cooldown on someone, such as a stranger you save while questing, is only whispered to them. Your own defensive cooldowns aren't announced, since there's no group to tell. |
+
+### In a raid
+
+Choose where the group message goes under **Announce > In a raid** in the options, or with `/ea raid <choice>`:
+
+| Choice | Command | Group message goes to |
+| --- | --- | --- |
+| Raid chat (default) | `/ea raid raid` | The whole raid |
+| Raid warning | `/ea raid warning` | The big warning text in the middle of everyone's screen. Only the raid leader and assistants can send it, so anyone else's message goes to raid chat instead. |
+| My subgroup only | `/ea raid subgroup` | Party chat, which in a raid reaches only your own five-person group |
+| Don't announce | `/ea raid off` | Nothing; whispers are still sent |
 
 In a raid, the whisper still reaches anyone in the raid, not just your own subgroup.
 
@@ -79,8 +89,8 @@ In a raid, the whisper still reaches anyone in the raid, not just your own subgr
 | `/ea help` | List every option you can change from chat |
 | `/ea whisper [on\|off]` | Whisper the person your protective cooldown lands on |
 | `/ea group [on\|off]` | Tell your party or raid (both kinds) |
+| `/ea raid <raid\|warning\|subgroup\|off>` | Where the group message goes in a raid |
 | `/ea <spell option> [on\|off]` | Turn a spell on or off, for example `/ea innervate on` or `/ea laststand off` |
-| `/ea throttle <seconds>` | How long before the same spell on the same person is announced again |
 | `/ea whispertext <text>` | Whisper wording for protective cooldowns on others. `{spell}` and `{target}` are filled in |
 | `/ea grouptext <text>` | Group wording for protective cooldowns on others |
 | `/ea selftext <text>` | Group wording for your own defensive cooldowns |
@@ -100,6 +110,12 @@ Default wording:
 - The game sometimes blocks addon chat messages. When that happens, EmergencyAnnounce prints a line in your own chat instead of sending.
 
 ## Building and releasing
+
+Check the code with [luacheck](https://github.com/lunarmodules/luacheck) (settings in `.luacheckrc`; the bundled Ace3 libraries are skipped):
+
+```powershell
+luacheck .
+```
 
 Build a zip locally (for testing):
 

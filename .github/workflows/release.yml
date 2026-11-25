@@ -1,4 +1,4 @@
-# Release on a version tag: push v1.2.3 and this builds the zip, publishes the
+# Release on a version tag: push vX.Y.Z and this builds the zip, publishes the
 # GitHub release with that version's CHANGELOG section, and uploads the same
 # zip and notes to CurseForge.
 #
@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to publish, e.g. v1.2.2"
+        description: "Existing tag to publish, e.g. vX.Y.Z"
         required: true
 
 permissions:

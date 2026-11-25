@@ -14,9 +14,8 @@ local ADDON, ns = ...
 local EA = LibStub("AceAddon-3.0"):NewAddon(ns, ADDON, "AceEvent-3.0", "AceConsole-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON)
 
-local byID, byName = {}, {}
+local byName = {}   -- spell name in the player's language -> spell entry
 local pending
-local last = {}
 
 local function readable(v)
     return not issecretvalue or not issecretvalue(v)
@@ -34,7 +33,7 @@ function EA:MySpells()
 end
 
 function EA:SpellLabel(s)
-    return spellName(s.ids[1]) or s.key
+    return spellName(s.id) or s.key
 end
 
 -- Fill {spell} and {target} into a message.
@@ -45,9 +44,6 @@ function EA:Fill(text, spell, target)
 end
 
 function EA:OnInitialize()
-    -- 1.1.0 kept its settings in a flat table; Ace3 keeps profiles. Start clean.
-    if EmergencyAnnounceDB and EmergencyAnnounceDB.whisper ~= nil then EmergencyAnnounceDB = nil end
-
     local spells = {}
     for _, list in pairs(ns.SPELLS) do
         for _, s in ipairs(list) do spells[s.key] = s.on end
@@ -56,7 +52,7 @@ function EA:OnInitialize()
         profile = {
             whisper = true,                       -- whisper the person a protective cooldown lands on (never yourself)
             group = true,                         -- party / raid / instance chat, for both kinds
-            throttle = 10,                        -- seconds before the same spell on the same person repeats
+            raid = "raid",                        -- in a raid: "raid", "warning", "subgroup" or "off"
             whisperText = L["{spell} on you!"],   -- protective cooldowns on others: the whisper
             groupText = L["{spell} on {target}"], -- protective cooldowns on others: the group message
             selfText = L["Used {spell}!"],        -- your own defensive cooldowns: the group message
@@ -69,11 +65,8 @@ end
 function EA:OnEnable()
     for _, list in pairs(ns.SPELLS) do
         for _, s in ipairs(list) do
-            for _, id in ipairs(s.ids) do
-                byID[id] = s
-                local name = spellName(id)
-                if name then byName[name] = s end
-            end
+            local name = spellName(s.id)
+            if name then byName[name] = s end
         end
     end
     self:RegisterEvent("UNIT_SPELLCAST_SENT")
@@ -107,23 +100,28 @@ local function send(msg, channel, who)
     return (pcall(fn, msg, channel, nil, who))
 end
 
-local function groupChannel()
+-- Where the group message goes. In a raid the player chooses: raid chat, raid
+-- warning (only raid leader and assistants may send it, so anyone else falls
+-- back to raid chat), their own subgroup (party chat), or nothing.
+local function groupChannel(raidChoice)
     if LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)
         and not IsInGroup(LE_PARTY_CATEGORY_HOME) then
         return "INSTANCE_CHAT"
     end
-    if IsInRaid() then return "RAID" end
+    if IsInRaid() then
+        if raidChoice == "off" then return nil end
+        if raidChoice == "subgroup" then return "PARTY" end
+        if raidChoice == "warning" and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) then
+            return "RAID_WARNING"
+        end
+        return "RAID"
+    end
     if IsInGroup() then return "PARTY" end
 end
 
 function EA:Announce(spell, target, kind)
     local p = self.db.profile
-    local key = spell .. "|" .. target
-    local now = GetTime()
-    if last[key] and now - last[key] < p.throttle then return end
-    last[key] = now
-
-    local channel = p.group and groupChannel()
+    local channel = p.group and groupChannel(p.raid)
     if kind == "self" then
         -- Your own defensive cooldown: the group needs to know, there's nobody to whisper.
         if channel and not send(self:Fill(p.selfText, spell, UnitName("player")), channel) then
@@ -154,10 +152,10 @@ function EA:UNIT_SPELLCAST_SENT(_, unit, target, castGUID, spellID)
     if unit ~= "player" then return end
     if not (readable(target) and readable(castGUID) and readable(spellID)) then return end
     local name = spellName(spellID)
-    local s = byID[spellID] or (name and byName[name])
+    local s = name and byName[name]
     if not s or not self.db.profile.spells[s.key] then return end
     if s.kind == "self" or not target or target == "" then target = UnitName("player") end
-    pending = { guid = castGUID, spell = name or self:SpellLabel(s), target = target, kind = s.kind, at = GetTime() }
+    pending = { guid = castGUID, spell = name, target = target, kind = s.kind, at = GetTime() }
 end
 
 -- SUCCEEDED: the server confirms that same cast went off. Only now announce.

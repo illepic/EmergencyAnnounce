@@ -18,13 +18,13 @@ end
 
 -- The game's own icon and description for a spell (its first rank).
 local function spellIcon(s)
-    local id = s.ids[1]
+    local id = s.id
     if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(id) end
     return GetSpellTexture and GetSpellTexture(id)
 end
 
 local function spellTooltip(s)
-    local text = C_Spell and C_Spell.GetSpellDescription and C_Spell.GetSpellDescription(s.ids[1])
+    local text = C_Spell and C_Spell.GetSpellDescription and C_Spell.GetSpellDescription(s.id)
     local line = L["Announce %s when it lands."]:format(EA:SpellLabel(s))
     if type(text) == "string" and text ~= "" then return text .. "\n\n|cff999999" .. line .. "|r" end
     return line
@@ -134,11 +134,14 @@ function EA:GetOptions()
                         desc = L["Whisper the person your protective cooldown lands on. Never yourself, never an NPC."] },
                     group = { type = "toggle", order = 2, name = L["Tell my group"],
                         desc = L["Announce in party, raid or instance chat. Not in a group, only the whisper is sent."] },
-                    throttle = { type = "range", order = 3, name = L["Repeat delay"],
-                        desc = L["Seconds before the same spell on the same person is announced again."],
-                        min = 0, max = 300, step = 1 },
+                    raid = { type = "select", order = 3, name = L["In a raid"],
+                        desc = L["Raid warning needs raid leader or assistant; otherwise it goes to raid chat."],
+                        values = { raid = L["Raid chat"], warning = L["Raid warning"],
+                            subgroup = L["My subgroup only"], off = L["Don't announce"] },
+                        sorting = { "raid", "warning", "subgroup", "off" },
+                        disabled = function() return not EA.db.profile.group end },
                     channels = { type = "description", order = 4,
-                        name = "\n" .. L["Group messages go to party chat in a party, raid chat in a raid, and instance chat in groups the game made for you (dungeon finder, battlegrounds)."]
+                        name = "\n" .. L["Group messages go to party chat in a party and instance chat in groups the game made for you (dungeon finder, battlegrounds). In a raid, you choose above: raid chat, raid warning, your own subgroup, or nothing."]
                             .. "\n" .. L["Not in a group: a protective cooldown on someone, such as a stranger you save while questing, is only whispered to them. Your own defensive cooldowns aren't announced, since there's no group to tell."] },
                 },
             },

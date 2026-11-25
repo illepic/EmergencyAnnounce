@@ -1,6 +1,7 @@
--- The spells EmergencyAnnounce can announce, by class. Every rank's spell ID is
--- listed; names come from the game, so every client language works. `on` is
--- the default, and each player can change it in the options.
+-- The spells EmergencyAnnounce can announce, by class. Each spell is listed by
+-- one spell ID; the game turns it into the spell's name in the player's
+-- language, and a cast is matched by that name, so every rank counts.
+-- `on` is the default, and each player can change it in the options.
 --
 -- Two kinds:
 --   help: a protective cooldown you cast on someone else. Whisper them and
@@ -15,40 +16,40 @@ local _, ns = ...
 
 ns.SPELLS = {
     PALADIN = {
-        { key = "bop",             kind = "help", ids = { 1022, 5599, 10278 },                 on = true  }, -- Blessing of Protection
-        { key = "freedom",         kind = "help", ids = { 1044 },                              on = true  }, -- Blessing of Freedom
-        { key = "di",              kind = "help", ids = { 19752 },                             on = true  }, -- Divine Intervention
-        { key = "loh",             kind = "help", ids = { 633, 2800, 10310 },                  on = false }, -- Lay on Hands: a big heal, nothing for the target to react to
-        { key = "sacrifice",       kind = "help", ids = { 6940, 20729 },                       on = false }, -- Blessing of Sacrifice
-        { key = "divineshield",    kind = "self", ids = { 642, 1020 },                         on = false }, -- Divine Shield
-        { key = "divineprotection",kind = "self", ids = { 498, 5573 },                         on = false }, -- Divine Protection
-        { key = "bulwark",         kind = "self", ids = { 1311015 },                           on = false }, -- Templar's Bulwark (Forever)
+        { key = "bop",              kind = "help", id = 1022,    on = true  }, -- Blessing of Protection
+        { key = "freedom",          kind = "help", id = 1044,    on = true  }, -- Blessing of Freedom
+        { key = "di",               kind = "help", id = 19752,   on = true  }, -- Divine Intervention
+        { key = "loh",              kind = "help", id = 633,     on = false }, -- Lay on Hands: nothing for the target to react to
+        { key = "sacrifice",        kind = "help", id = 6940,    on = false }, -- Blessing of Sacrifice
+        { key = "divineshield",     kind = "self", id = 642,     on = false }, -- Divine Shield
+        { key = "divineprotection", kind = "self", id = 498,     on = false }, -- Divine Protection
+        { key = "bulwark",          kind = "self", id = 1311015, on = false }, -- Templar's Bulwark (Forever)
     },
     WARRIOR = {
-        { key = "laststand",       kind = "self", ids = { 12975 },                             on = true  }, -- Last Stand
-        { key = "shieldwall",      kind = "self", ids = { 871 },                               on = true  }, -- Shield Wall
-        { key = "retaliation",     kind = "self", ids = { 20230 },                             on = false }, -- Retaliation
+        { key = "laststand",        kind = "self", id = 12975,   on = true  }, -- Last Stand
+        { key = "shieldwall",       kind = "self", id = 871,     on = true  }, -- Shield Wall
+        { key = "retaliation",      kind = "self", id = 20230,   on = false }, -- Retaliation
     },
     DRUID = {
-        { key = "innervate",       kind = "help", ids = { 29166 },                             on = true  }, -- Innervate
-        { key = "rebirth",         kind = "help", ids = { 20484, 20739, 20742, 20747, 20748 }, on = true  }, -- Rebirth
-        { key = "frenziedregen",   kind = "self", ids = { 22842 },                             on = true  }, -- Frenzied Regeneration
-        { key = "barkskin",        kind = "self", ids = { 22812 },                             on = false }, -- Barkskin
+        { key = "innervate",        kind = "help", id = 29166,   on = true  }, -- Innervate
+        { key = "rebirth",          kind = "help", id = 20484,   on = true  }, -- Rebirth
+        { key = "frenziedregen",    kind = "self", id = 22842,   on = true  }, -- Frenzied Regeneration
+        { key = "barkskin",         kind = "self", id = 22812,   on = false }, -- Barkskin
     },
     PRIEST = {
-        { key = "fearward",        kind = "help", ids = { 6346 },                              on = true  }, -- Fear Ward
-        { key = "pi",              kind = "help", ids = { 10060 },                             on = false }, -- Power Infusion
+        { key = "fearward",         kind = "help", id = 6346,    on = true  }, -- Fear Ward
+        { key = "pi",               kind = "help", id = 10060,   on = false }, -- Power Infusion
     },
     WARLOCK = {
-        { key = "soulstone",       kind = "help", ids = { 20707, 20762, 20763, 20764, 20765 }, on = true  }, -- Soulstone Resurrection
+        { key = "soulstone",        kind = "help", id = 20707,   on = true  }, -- Soulstone Resurrection
     },
     MAGE = {
-        { key = "iceblock",        kind = "self", ids = { 11958 },                             on = false }, -- Ice Block
+        { key = "iceblock",         kind = "self", id = 11958,   on = false }, -- Ice Block
     },
     ROGUE = {
-        { key = "evasion",         kind = "self", ids = { 5277 },                              on = false }, -- Evasion
+        { key = "evasion",          kind = "self", id = 5277,    on = false }, -- Evasion
     },
     HUNTER = {
-        { key = "deterrence",      kind = "self", ids = { 19263 },                             on = false }, -- Deterrence
+        { key = "deterrence",       kind = "self", id = 19263,   on = false }, -- Deterrence
     },
 }
