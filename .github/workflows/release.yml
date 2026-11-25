@@ -96,25 +96,22 @@ jobs:
           }
           $api = 'https://wow.curseforge.com/api'
           $headers = @{ 'X-Api-Token' = $env:CF_API_KEY }
+          # CurseForge's lists can arrive wrapped in an outer list; emit each entry on its own.
+          function Get-CfList($path) {
+            foreach ($item in (Invoke-RestMethod "$api/$path" -Headers $headers)) { $item }
+          }
 
           # Which game version to mark the file with: the override, or the newest WoW Forever one.
           $gameVersion = $env:CF_GAME_VERSION_ID
           if (-not $gameVersion) {
-            $types = @(Invoke-RestMethod "$api/game/version-types" -Headers $headers)
-            $forever = @($types | Where-Object { $_.name -match 'Forever' -or $_.slug -match 'forever' })
+            $types = @(Get-CfList 'game/version-types')
+            $forever = @($types | Where-Object { $_.slug -eq 'wow-forever' })
             if ($forever.Count -ne 1) {
               $types | ForEach-Object { "  $($_.id)  $($_.name)  ($($_.slug))" }
               throw "Expected exactly one WoW Forever game version type, found $($forever.Count)"
             }
-            $all = @(Invoke-RestMethod "$api/game/versions" -Headers $headers)
-            $versions = @($all | Where-Object { $_.gameVersionTypeID -eq $forever[0].id } | Sort-Object id -Descending)
-            "WoW Forever versions on CurseForge: " + (($versions | ForEach-Object { "$($_.name) (id $($_.id))" }) -join ', ')
-            if ($versions.Count -eq 0) {
-              "WoW Forever type: id $($forever[0].id), name '$($forever[0].name)', slug '$($forever[0].slug)'"
-              "Version types:"; $types | ForEach-Object { "  $($_.id)  $($_.name)  ($($_.slug))" }
-              "Versions named 1.6*:"; $all | Where-Object { $_.name -like '1.6*' } | ForEach-Object { "  id $($_.id)  $($_.name)  type $($_.gameVersionTypeID)  ($($_.slug))" }
-              throw "No game versions listed for $($forever[0].name)"
-            }
+            $versions = @(Get-CfList 'game/versions' | Where-Object { $_.gameVersionTypeID -eq $forever[0].id } | Sort-Object id -Descending)
+            if ($versions.Count -eq 0) { throw "No game versions listed for $($forever[0].name)" }
             $gameVersion = $versions[0].id
             "Using: $($forever[0].name) $($versions[0].name) (id $gameVersion)"
           }
