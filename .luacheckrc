@@ -9,7 +9,7 @@ globals = { "EmergencyAnnounceDB" }
 
 -- WoW API the addon reads. Add a name here when the code starts using it.
 read_globals = {
-    "LibStub", "issecretvalue", "strtrim", "CopyTable", "ChatTypeInfo", "Settings",
+    "LibStub", "CreateFrame", "issecretvalue", "strtrim", "CopyTable", "ChatTypeInfo", "Settings",
     "C_Spell", "C_ChatInfo", "C_AddOns",
     "UnitClass", "UnitName", "GetUnitName", "UnitIsPlayer", "UnitIsGroupLeader", "UnitIsGroupAssistant",
     "IsInRaid", "IsInGroup", "GetNumGroupMembers", "GetNumSubgroupMembers", "GetTime",

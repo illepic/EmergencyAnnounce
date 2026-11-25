@@ -1,7 +1,10 @@
 -- English text for EmergencyAnnounce: the options page, the default wording
 -- for protective cooldowns on others and for your own defensive cooldowns,
 -- and chat lines. Other languages go in their own file next to this one.
+-- L: the English text. `true` makes English the default, used for any text
+-- another language doesn't have. Each line below sets a text to itself.
 local L = LibStub("AceLocale-3.0"):NewLocale("EmergencyAnnounce", "enUS", true)
+-- AceLocale returns nil when this language isn't needed; then skip the file.
 if not L then return end
 
 -- Default message text (players can change it in the options)

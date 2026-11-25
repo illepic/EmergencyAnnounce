@@ -12,8 +12,15 @@
 -- Spell availability on WoW: Forever checked against talentsforever.com data
 -- (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/).
 
+-- ns: the table shared by this addon's files (it becomes the addon object).
 local _, ns = ...
 
+-- Spells by class (the game's English class name, the same in every language).
+-- Each entry:
+--   key  = its name in the saved settings and its /ea command (/ea bop on)
+--   kind = "help" or "self" (see above)
+--   id   = the spell ID of its first rank
+--   on   = announced by default
 ns.SPELLS = {
     PALADIN = {
         { key = "bop",              kind = "help", id = 1022,    on = true  }, -- Blessing of Protection

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- Only ever sees your own casts: the game now passes EmergencyAnnounce your casts alone, instead of every cast around you.
+- Lighter: looks up only your own class's spells, remembers each spell it has checked, and reads your name once at login.
+- No longer needs the AceEvent library.
+
 ## 1.3.1
 
 - Clearer wording: spells are announced when your cast succeeds. The README explains how a cast is confirmed and what isn't checked.

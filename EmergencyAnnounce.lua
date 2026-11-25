@@ -10,41 +10,82 @@
 -- Copyright (C) 2026 Garreth Stonecrash
 -- Licensed under the GNU General Public License v3.0 or later. See LICENSE.
 
+-- ADDON: this addon's folder name ("EmergencyAnnounce").
+-- ns: a table the game gives every file of this addon, shared between them.
 local ADDON, ns = ...
-local EA = LibStub("AceAddon-3.0"):NewAddon(ns, ADDON, "AceEvent-3.0", "AceConsole-3.0")
+
+-- The addon object. AceAddon turns ns into it, so every file reaches it as ns.
+-- AceConsole adds Print and RegisterChatCommand.
+local EA = LibStub("AceAddon-3.0"):NewAddon(ns, ADDON, "AceConsole-3.0")
+
+-- All player-facing text, looked up by its English wording (Locales\enUS.lua).
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON)
 
-local byName = {}   -- spell name in the player's language -> spell entry
+-- Your class's spells from Spells.lua, by their name in your language. A cast
+-- is looked up here by name, so every rank of a spell finds the same entry.
+local byName = {}
+
+-- Every spell ID you've cast this session -> its entry in Spells.lua, or false
+-- if EmergencyAnnounce doesn't announce it. Saves looking up the name again.
+local byID = {}
+
+-- Your character's name, read once at login.
+local me
+
+-- The cast you just pressed, waiting for the game to confirm it succeeded:
+-- { guid = cast ID, spell = chat link, target = name, kind = "help"/"self",
+--   at = time pressed }. nil when nothing is waiting.
 local pending
 
+-- Forever can hide some values from addons; comparing a hidden value is an error.
 local function readable(v)
     return not issecretvalue(v)
 end
 
+-- A spell's name in the player's language, from its spell ID.
 local spellName = C_Spell.GetSpellName
 
--- The spells for your class, or an empty list.
-function EA:MySpells()
-    local _, class = UnitClass("player")
+-- The Spells.lua entry for a spell ID you cast, or false if we don't announce
+-- it. Looked up by name the first time, then remembered in byID.
+local function entryFor(spellID)
+    local s = byID[spellID]
+    if s == nil then
+        s = byName[spellName(spellID)] or false
+        byID[spellID] = s
+    end
+    return s
+end
+
+-- EmergencyAnnounce's spells for your class (from Spells.lua), learned or not.
+-- An empty list if your class has none.
+function EA:ClassSpells()
+    local _, class = UnitClass("player")   -- "PALADIN", "DRUID"... in every language
     return ns.SPELLS[class] or {}
 end
 
+-- A spell's name for the options page, from its entry in Spells.lua.
 function EA:SpellLabel(s)
     return spellName(s.id)
 end
 
--- Fill {spell} and {target} into a message.
+-- Fill {spell} and {target} into a message. Any other {word}, such as the
+-- raid markers {skull} or {star}, is left for the game's chat to handle.
 function EA:Fill(text, spell, target)
     return (text:gsub("{(%a+)}", function(k)
         if k == "spell" then return spell elseif k == "target" then return target end
     end))
 end
 
+-- AceAddon calls this once, when the addon has loaded: set up the saved
+-- settings and the options page.
 function EA:OnInitialize()
+    -- Each spell's default on/off, by its key ("bop" = true...).
     local spells = {}
     for _, list in pairs(ns.SPELLS) do
         for _, s in ipairs(list) do spells[s.key] = s.on end
     end
+    -- Saved settings in EmergencyAnnounceDB, with profiles. `true` makes every
+    -- character start on the shared "Default" profile.
     self.db = LibStub("AceDB-3.0"):New("EmergencyAnnounceDB", {
         profile = {
             whisper = true,                       -- whisper the person you cast a protective cooldown on (never yourself)
@@ -53,23 +94,33 @@ function EA:OnInitialize()
             whisperText = L["{spell} on you!"],   -- protective cooldowns on others: the whisper
             groupText = L["{spell} on {target}"], -- protective cooldowns on others: the group message
             selfText = L["Used {spell}!"],        -- your own defensive cooldowns: the group message
-            spells = spells,
+            spells = spells,                      -- each spell on or off, by key
         },
     }, true)
     self:SetupOptions()
 end
 
+-- AceAddon calls this when you log in: read your name, learn your class's
+-- spell names and start listening for casts.
 function EA:OnEnable()
-    for _, list in pairs(ns.SPELLS) do
-        for _, s in ipairs(list) do byName[spellName(s.id)] = s end
-    end
-    self:RegisterEvent("UNIT_SPELLCAST_SENT")
-    self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    me = UnitName("player")
+    self.playerName = me   -- for the previews in Options.lua
+    for _, s in ipairs(self:ClassSpells()) do byName[spellName(s.id)] = s end
+
+    -- Only your own casts: the game itself filters these events to "player",
+    -- so other players' casts never reach the addon. Each event calls the
+    -- method of the same name below.
+    local frame = CreateFrame("Frame")
+    frame:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
+    frame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    frame:SetScript("OnEvent", function(_, event, ...) self[event](self, ...) end)
 end
 
 -- The unit for a name we can see (group, target, mouseover, focus), so an NPC
 -- never gets whispered and players from other realms get their full name.
+-- nil if no player by that name is in sight.
 local function findUnit(name)
+    -- Where a cast's target usually is, then everyone in your group.
     local units = { "target", "mouseover", "targettarget", "focus" }
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do units[#units + 1] = "raid" .. i end
@@ -77,6 +128,7 @@ local function findUnit(name)
         for i = 1, GetNumSubgroupMembers() do units[#units + 1] = "party" .. i end
     end
     for _, unit in ipairs(units) do
+        -- short: "Thrall". full: "Thrall-Realm" for players from another realm.
         local short, full = UnitName(unit), GetUnitName(unit, true)
         if readable(short) and readable(full) and (short == name or full == name) and UnitIsPlayer(unit) then
             return unit
@@ -84,17 +136,21 @@ local function findUnit(name)
     end
 end
 
--- Returns false if the game is blocking addon chat right now or refuses the
--- message, so the caller can tell the player instead of showing a Lua error.
+-- Send one chat message. channel: "WHISPER", "PARTY", "RAID"...; who: the
+-- player to whisper. Returns false if the game is blocking addon chat right
+-- now or refuses the message, so the caller can tell the player instead of
+-- showing a Lua error.
 local function send(msg, channel, who)
     if C_ChatInfo.InChatMessagingLockdown() then return false end
     return (pcall(C_ChatInfo.SendChatMessage, msg, channel, nil, who))
 end
 
--- Where the group message goes. In a raid the player chooses: raid chat, raid
--- warning (only raid leader and assistants may send it, so anyone else falls
--- back to raid chat), their own subgroup (party chat), or nothing.
+-- Where the group message goes, or nil for nowhere. In a raid the player
+-- chooses (raidChoice): raid chat, raid warning (only raid leader and
+-- assistants may send it, so anyone else falls back to raid chat), their own
+-- subgroup (party chat), or nothing.
 local function groupChannel(raidChoice)
+    -- A group the game made for you (dungeon finder, battleground).
     if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) and not IsInGroup(LE_PARTY_CATEGORY_HOME) then
         return "INSTANCE_CHAT"
     end
@@ -109,20 +165,23 @@ local function groupChannel(raidChoice)
     if IsInGroup() then return "PARTY" end
 end
 
+-- Send the messages for one successful cast. spell: the spell's chat link;
+-- target: who it was cast on; kind: "help" (protective cooldown on others) or
+-- "self" (your own defensive cooldown).
 function EA:Announce(spell, target, kind)
-    local p = self.db.profile
-    local channel = p.group and groupChannel(p.raid)
+    local p = self.db.profile   -- the current profile's settings
+    local channel = p.group and groupChannel(p.raid)   -- nil: no group message
     if kind == "self" then
         -- Your own defensive cooldown: the group needs to know, there's nobody to whisper.
-        if channel and not send(self:Fill(p.selfText, spell, UnitName("player")), channel) then
+        if channel and not send(self:Fill(p.selfText, spell, me), channel) then
             self:Print(L["Chat was blocked, so %s wasn't announced."]:format(spell))
         end
         return
     end
 
     -- A protective cooldown on someone: whisper them, tell the group.
-    local isMe = target == UnitName("player")
-    local ok = true
+    local isMe = target == me   -- cast on yourself: no whisper
+    local ok = true                              -- false once any message fails
     if p.whisper and not isMe then
         local unit = findUnit(target)
         if unit then
@@ -140,19 +199,23 @@ end
 -- SENT: you pressed the spell. Remember the cast, announce nothing yet.
 -- {spell} becomes a chat link to the exact rank you cast, so anyone can hover
 -- or click it for the game's own tooltip.
-function EA:UNIT_SPELLCAST_SENT(_, unit, target, castGUID, spellID)
-    if unit ~= "player" then return end
+-- target: the target's name ("" or nil for none); castGUID: the game's ID for
+-- this one cast; spellID: the exact rank cast. (The first value, the unit, is
+-- always "player".)
+function EA:UNIT_SPELLCAST_SENT(_, target, castGUID, spellID)
     if not (readable(target) and readable(castGUID) and readable(spellID)) then return end
-    local s = byName[spellName(spellID)]
+    local s = entryFor(spellID)   -- the spell's entry, or false if we don't announce it
     if not s or not self.db.profile.spells[s.key] then return end
-    if s.kind == "self" or not target or target == "" then target = UnitName("player") end
+    if s.kind == "self" or not target or target == "" then target = me end
     pending = { guid = castGUID, spell = C_Spell.GetSpellLink(spellID), target = target, kind = s.kind, at = GetTime() }
 end
 
 -- SUCCEEDED: the server confirms that same cast went off. Only now announce.
-function EA:UNIT_SPELLCAST_SUCCEEDED(_, unit, castGUID)
-    if unit ~= "player" or not readable(castGUID) or not pending or pending.guid ~= castGUID then return end
-    local p = pending
+-- castGUID must match the cast remembered at SENT, within 5 seconds.
+-- (The first value, the unit, is always "player".)
+function EA:UNIT_SPELLCAST_SUCCEEDED(_, castGUID)
+    if not readable(castGUID) or not pending or pending.guid ~= castGUID then return end
+    local cast = pending
     pending = nil
-    if GetTime() - p.at < 5 then self:Announce(p.spell, p.target, p.kind) end
+    if GetTime() - cast.at < 5 then self:Announce(cast.spell, cast.target, cast.kind) end
 end

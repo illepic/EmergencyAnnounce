@@ -153,7 +153,7 @@ The [Release workflow](.github/workflows/release.yml) then builds the zip, publi
 
 ## Credits
 
-- Built on [Ace3](https://github.com/WoWUIDev/Ace3) (AceAddon, AceEvent, AceConsole, AceDB, AceDBOptions, AceLocale, AceGUI, AceConfig), included in `Libs` under its own licence (`Libs/Ace3-LICENSE.txt`).
+- Built on [Ace3](https://github.com/WoWUIDev/Ace3) (AceAddon, AceConsole, AceDB, AceDBOptions, AceLocale, AceGUI, AceConfig), included in `Libs` under its own licence (`Libs/Ace3-LICENSE.txt`).
 - Spell availability on WoW: Forever checked against [talentsforever.com](https://talentsforever.com) data, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Licence
