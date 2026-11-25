@@ -2,9 +2,10 @@
 # GitHub release with that version's CHANGELOG section, and uploads the same
 # zip and notes to CurseForge.
 #
-# Needs (without them the CurseForge upload is skipped with a warning):
-#   secret   CF_API_KEY           a CurseForge API token
-#   variable CF_GAME_VERSION_ID   CurseForge's id for the WoW Forever game version
+# Needs the secret CF_API_KEY (a CurseForge API token); without it the
+# CurseForge upload is skipped with a warning. The file is marked with the
+# newest WoW Forever game version CurseForge lists, looked up on each release;
+# the optional variable CF_GAME_VERSION_ID overrides that with a fixed id.
 # The CurseForge project id is read from "## X-Curse-Project-ID" in the .toc.
 # Tags ending in -beta or -alpha upload as beta or alpha; anything else as release.
 
@@ -22,7 +23,7 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Read version and project from the .toc
         id: meta
@@ -59,10 +60,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $zip = "dist\EmergencyAnnounce-${{ steps.meta.outputs.version }}.zip"
-          $flags = @()
-          if ("${{ steps.meta.outputs.type }}" -ne 'release') { $flags += '--prerelease' }
-          gh release create "${{ github.ref_name }}" $zip --title "EmergencyAnnounce ${{ steps.meta.outputs.version }}" --notes-file notes.md --verify-tag @flags
-          if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            # Re-run of this workflow: refresh the existing release instead of failing.
+            gh release upload $tag $zip --clobber
+            if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
+            gh release edit $tag --notes-file notes.md
+            if ($LASTEXITCODE -ne 0) { throw "gh release edit failed" }
+          } else {
+            $flags = @()
+            if ("${{ steps.meta.outputs.type }}" -ne 'release') { $flags += '--prerelease' }
+            gh release create $tag $zip --title "EmergencyAnnounce ${{ steps.meta.outputs.version }}" --notes-file notes.md --verify-tag @flags
+            if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
+          }
 
       - name: Upload to CurseForge
         shell: powershell
@@ -70,15 +81,34 @@ jobs:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           CF_GAME_VERSION_ID: ${{ vars.CF_GAME_VERSION_ID }}
         run: |
-          if (-not $env:CF_API_KEY -or -not $env:CF_GAME_VERSION_ID) {
-            "::warning::CurseForge upload skipped: set the CF_API_KEY secret and the CF_GAME_VERSION_ID variable to enable it."
+          if (-not $env:CF_API_KEY) {
+            "::warning::CurseForge upload skipped: set the CF_API_KEY secret to enable it."
             exit 0
           }
+          $api = 'https://wow.curseforge.com/api'
+          $headers = @{ 'X-Api-Token' = $env:CF_API_KEY }
+
+          # Which game version to mark the file with: the override, or the newest WoW Forever one.
+          $gameVersion = $env:CF_GAME_VERSION_ID
+          if (-not $gameVersion) {
+            $types = Invoke-RestMethod "$api/game/version-types" -Headers $headers
+            $forever = @($types | Where-Object { $_.name -match 'Forever' -or $_.slug -match 'forever' })
+            if ($forever.Count -ne 1) {
+              "CurseForge game version types:"; $types | ForEach-Object { "  $($_.id)  $($_.name)  ($($_.slug))" }
+              throw "Expected exactly one WoW Forever game version type, found $($forever.Count)"
+            }
+            $versions = @(Invoke-RestMethod "$api/game/versions" -Headers $headers |
+              Where-Object { $_.gameVersionTypeID -eq $forever[0].id } | Sort-Object id -Descending)
+            if (-not $versions) { throw "No game versions listed for $($forever[0].name)" }
+            $gameVersion = $versions[0].id
+            "Game version: $($forever[0].name) $($versions[0].name) (id $gameVersion)"
+          }
+
           $metadata = @{
             changelog     = [IO.File]::ReadAllText("$pwd\notes.md")
             changelogType = 'markdown'
             displayName   = "EmergencyAnnounce ${{ steps.meta.outputs.version }}"
-            gameVersions  = @([int]$env:CF_GAME_VERSION_ID)
+            gameVersions  = @([int]$gameVersion)
             releaseType   = "${{ steps.meta.outputs.type }}"
           } | ConvertTo-Json -Compress
           [IO.File]::WriteAllText("$pwd\metadata.json", $metadata)

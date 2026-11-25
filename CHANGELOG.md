@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2
+
+- Bump for publishing.
+
 ## 1.2.1
 
 A livelier options page:
