@@ -109,7 +109,12 @@ jobs:
             $all = @(Invoke-RestMethod "$api/game/versions" -Headers $headers)
             $versions = @($all | Where-Object { $_.gameVersionTypeID -eq $forever[0].id } | Sort-Object id -Descending)
             "WoW Forever versions on CurseForge: " + (($versions | ForEach-Object { "$($_.name) (id $($_.id))" }) -join ', ')
-            if ($versions.Count -eq 0) { throw "No game versions listed for $($forever[0].name)" }
+            if ($versions.Count -eq 0) {
+              "WoW Forever type: id $($forever[0].id), name '$($forever[0].name)', slug '$($forever[0].slug)'"
+              "Version types:"; $types | ForEach-Object { "  $($_.id)  $($_.name)  ($($_.slug))" }
+              "Versions named 1.6*:"; $all | Where-Object { $_.name -like '1.6*' } | ForEach-Object { "  id $($_.id)  $($_.name)  type $($_.gameVersionTypeID)  ($($_.slug))" }
+              throw "No game versions listed for $($forever[0].name)"
+            }
             $gameVersion = $versions[0].id
             "Using: $($forever[0].name) $($versions[0].name) (id $gameVersion)"
           }
