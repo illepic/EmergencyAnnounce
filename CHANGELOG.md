@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+EmergencyAnnounce now announces two kinds of cooldown: protective cooldowns you cast on others, and your own defensive cooldowns.
+
+- More protective cooldowns on others: druid Innervate and Rebirth, priest Fear Ward (and Power Infusion, off by default), warlock Soulstone.
+- New: your own defensive cooldowns are announced to your group: warrior Last Stand and Shield Wall, druid Frenzied Regeneration. Barkskin, Retaliation, Divine Shield, Divine Protection, Templar's Bulwark, Ice Block, Evasion and Deterrence can be switched on. They have their own wording (`Used {spell}!`).
+- A real options page: Esc > Options > AddOns > EmergencyAnnounce. `/ea` opens it.
+- Profiles: share one setup across characters, or keep one per character.
+- Every option can still be changed from chat. `/ea help` lists them, for example `/ea innervate on`.
+- Built on the Ace3 libraries.
+- Settings from 1.1.0 are reset to the defaults once.
+
 ## 1.1.0
 
 - Spells are matched by spell ID, so the addon works in every client language.

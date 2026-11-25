@@ -1,35 +1,19 @@
--- EmergencyAnnounce: whisper the person and tell your group when an emergency
--- spell actually lands. On by default: Blessing of Protection, Blessing of
--- Freedom and Divine Intervention. Off by default: Lay on Hands and Blessing
--- of Sacrifice. Only successful casts are announced, so mashing the
--- key, being out of range or on cooldown never sends anything.
+-- EmergencyAnnounce announces two kinds of spell the moment they land:
+--   * protective cooldowns you cast on others (Blessing of Protection,
+--     Innervate, Rebirth...): whisper the person and tell your group;
+--   * your own defensive cooldowns (Last Stand, Shield Wall, Frenzied
+--     Regeneration...): tell your group.
+-- Only successful casts are announced, so pressing the key repeatedly, being
+-- out of range or on cooldown never sends anything.
+-- The spells are in Spells.lua, the options in Options.lua.
 --
 -- Copyright (C) 2026 Garreth Stonecrash
 -- Licensed under the GNU General Public License v3.0 or later. See LICENSE.
 
-local ADDON = ...
+local ADDON, ns = ...
+local EA = LibStub("AceAddon-3.0"):NewAddon(ns, ADDON, "AceEvent-3.0", "AceConsole-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale(ADDON)
 
--- Every rank's spell ID. Names are read from the game at login, so any client
--- language works and a rank missing from this list still matches by name.
-local SPELLS = {
-    { key = "bop",       ids = { 1022, 5599, 10278 }, on = true  }, -- Blessing of Protection
-    { key = "freedom",   ids = { 1044 },              on = true  }, -- Blessing of Freedom
-    { key = "di",        ids = { 19752 },             on = true  }, -- Divine Intervention
-    { key = "loh",       ids = { 633, 2800, 10310 },  on = false }, -- Lay on Hands: a big heal, but the target has nothing to react to
-    { key = "sacrifice", ids = { 6940, 20729 },       on = false }, -- Blessing of Sacrifice
-}
-
-local DEFAULTS = {
-    whisper = true,                       -- whisper the person you cast it on (never yourself)
-    group = true,                         -- announce in party / raid / instance chat
-    throttle = 10,                        -- seconds before the same spell on the same person repeats
-    whisperText = "{spell} on you!",
-    groupText = "{spell} on {target}",
-    spells = {},
-}
-for _, s in ipairs(SPELLS) do DEFAULTS.spells[s.key] = s.on end
-
-local db
 local byID, byName = {}, {}
 local pending
 local last = {}
@@ -43,44 +27,61 @@ local function spellName(id)
     return (GetSpellInfo(id))
 end
 
-local function say(msg)
-    print("|cffffd200EmergencyAnnounce:|r " .. msg)
+-- The spells for your class, or an empty list.
+function EA:MySpells()
+    local _, class = UnitClass("player")
+    return ns.SPELLS[class] or {}
 end
 
-local function fill(text, vars)
-    return (text:gsub("{(%a+)}", function(k) return vars[k] end))
+function EA:SpellLabel(s)
+    return spellName(s.ids[1]) or s.key
 end
 
-local function copyDefaults(src, dst)
-    for k, v in pairs(src) do
-        if type(v) == "table" then
-            if type(dst[k]) ~= "table" then dst[k] = {} end
-            copyDefaults(v, dst[k])
-        elseif dst[k] == nil or type(dst[k]) ~= type(v) then
-            dst[k] = v
+-- Fill {spell} and {target} into a message.
+function EA:Fill(text, spell, target)
+    return (text:gsub("{(%a+)}", function(k)
+        if k == "spell" then return spell elseif k == "target" then return target end
+    end))
+end
+
+function EA:OnInitialize()
+    -- 1.1.0 kept its settings in a flat table; Ace3 keeps profiles. Start clean.
+    if EmergencyAnnounceDB and EmergencyAnnounceDB.whisper ~= nil then EmergencyAnnounceDB = nil end
+
+    local spells = {}
+    for _, list in pairs(ns.SPELLS) do
+        for _, s in ipairs(list) do spells[s.key] = s.on end
+    end
+    self.db = LibStub("AceDB-3.0"):New("EmergencyAnnounceDB", {
+        profile = {
+            whisper = true,                       -- whisper the person a protective cooldown lands on (never yourself)
+            group = true,                         -- party / raid / instance chat, for both kinds
+            throttle = 10,                        -- seconds before the same spell on the same person repeats
+            whisperText = L["{spell} on you!"],   -- protective cooldowns on others: the whisper
+            groupText = L["{spell} on {target}"], -- protective cooldowns on others: the group message
+            selfText = L["Used {spell}!"],        -- your own defensive cooldowns: the group message
+            spells = spells,
+        },
+    }, true)
+    self:SetupOptions()
+end
+
+function EA:OnEnable()
+    for _, list in pairs(ns.SPELLS) do
+        for _, s in ipairs(list) do
+            for _, id in ipairs(s.ids) do
+                byID[id] = s
+                local name = spellName(id)
+                if name then byName[name] = s end
+            end
         end
     end
-end
-
-local function buildLookup()
-    for _, s in ipairs(SPELLS) do
-        for _, id in ipairs(s.ids) do
-            byID[id] = s
-            local name = spellName(id)
-            if name then byName[name] = s; s.name = s.name or name end
-        end
-    end
-end
-
-local function spellFor(id)
-    local s = byID[id]
-    local name = spellName(id)
-    if not s and name then s = byName[name] end
-    if s then return s, name or s.name end
+    self:RegisterEvent("UNIT_SPELLCAST_SENT")
+    self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 end
 
 -- The unit for a name we can see (group, target, mouseover, focus), so an NPC
--- never gets whispered and cross-realm players get their full name.
+-- never gets whispered and players from other realms get their full name.
 local function findUnit(name)
     local units = { "target", "mouseover", "targettarget", "focus" }
     if IsInRaid() then
@@ -115,137 +116,54 @@ local function groupChannel()
     if IsInGroup() then return "PARTY" end
 end
 
-local function announce(spell, target)
+function EA:Announce(spell, target, kind)
+    local p = self.db.profile
     local key = spell .. "|" .. target
     local now = GetTime()
-    if last[key] and now - last[key] < db.throttle then return end
+    if last[key] and now - last[key] < p.throttle then return end
     last[key] = now
 
-    local me = UnitName("player")
-    local isMe = target == me
+    local channel = p.group and groupChannel()
+    if kind == "self" then
+        -- Your own defensive cooldown: the group needs to know, there's nobody to whisper.
+        if channel and not send(self:Fill(p.selfText, spell, UnitName("player")), channel) then
+            self:Print(L["Chat was blocked, so %s on %s wasn't announced."]:format(spell, target))
+        end
+        return
+    end
+
+    -- A protective cooldown on someone: whisper them, tell the group.
+    local isMe = target == UnitName("player")
     local ok = true
-    if db.whisper and not isMe then
+    if p.whisper and not isMe then
         local unit = findUnit(target)
         if unit then
-            local who = GetUnitName(unit, true) or target
-            ok = send(fill(db.whisperText, { spell = spell, target = target }), "WHISPER", who) and ok
+            ok = send(self:Fill(p.whisperText, spell, target), "WHISPER", GetUnitName(unit, true) or target) and ok
         end
     end
-    local channel = db.group and groupChannel()
     if channel then
-        ok = send(fill(db.groupText, { spell = spell, target = isMe and "myself" or target }), channel) and ok
+        ok = send(self:Fill(p.groupText, spell, isMe and L["myself"] or target), channel) and ok
     end
     if not ok then
-        say("chat was blocked, so " .. spell .. " on " .. target .. " wasn't announced.")
+        self:Print(L["Chat was blocked, so %s on %s wasn't announced."]:format(spell, target))
     end
 end
 
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("ADDON_LOADED")
-frame:RegisterEvent("PLAYER_LOGIN")
-frame:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
-frame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
-frame:SetScript("OnEvent", function(_, event, a, b, c, d)
-    if event == "ADDON_LOADED" then
-        if a ~= ADDON then return end
-        EmergencyAnnounceDB = EmergencyAnnounceDB or {}
-        db = EmergencyAnnounceDB
-        copyDefaults(DEFAULTS, db)
-    elseif event == "PLAYER_LOGIN" then
-        buildLookup()
-    elseif event == "UNIT_SPELLCAST_SENT" then
-        local target, castGUID, spellID = b, c, d
-        if not db or not (readable(target) and readable(castGUID) and readable(spellID)) then return end
-        local s, name = spellFor(spellID)
-        if not s or not db.spells[s.key] then return end
-        if not target or target == "" then target = UnitName("player") end
-        pending = { guid = castGUID, spell = name, target = target, at = GetTime() }
-    else -- UNIT_SPELLCAST_SUCCEEDED
-        local castGUID = b
-        if not readable(castGUID) or not pending or pending.guid ~= castGUID then return end
-        local p = pending
-        pending = nil
-        if GetTime() - p.at < 5 then announce(p.spell, p.target) end
-    end
-end)
-
--- /ea --------------------------------------------------------------------
-
-local function onOff(v) return v and "|cff40ff40on|r" or "|cffff4040off|r" end
-
-local function spellLabel(s) return s.name or spellName(s.ids[1]) or s.key end
-
-local function status()
-    say("whisper " .. onOff(db.whisper) .. ", group " .. onOff(db.group)
-        .. ", repeat after " .. db.throttle .. "s")
-    say("whisper text: " .. db.whisperText)
-    say("group text: " .. db.groupText)
-    for _, s in ipairs(SPELLS) do
-        print(("   %s (%s): %s"):format(spellLabel(s), s.key, onOff(db.spells[s.key])))
-    end
-    say("type |cffffffff/ea help|r for commands.")
+-- SENT: you pressed the spell. Remember the cast, announce nothing yet.
+function EA:UNIT_SPELLCAST_SENT(_, unit, target, castGUID, spellID)
+    if unit ~= "player" then return end
+    if not (readable(target) and readable(castGUID) and readable(spellID)) then return end
+    local name = spellName(spellID)
+    local s = byID[spellID] or (name and byName[name])
+    if not s or not self.db.profile.spells[s.key] then return end
+    if s.kind == "self" or not target or target == "" then target = UnitName("player") end
+    pending = { guid = castGUID, spell = name or self:SpellLabel(s), target = target, kind = s.kind, at = GetTime() }
 end
 
-local function help()
-    say("commands:")
-    print("   /ea - show your settings")
-    print("   /ea whisper [on|off] - whisper the person you protect")
-    print("   /ea group [on|off] - tell your party or raid")
-    print("   /ea spell <key> [on|off] - choose spells (keys: bop, freedom, di, loh, sacrifice)")
-    print("   /ea throttle <seconds> - wait before repeating for the same spell and person")
-    print("   /ea whispertext <text> - {spell} and {target} are filled in")
-    print("   /ea grouptext <text>")
-    print("   /ea test - preview the messages in your chat only")
-    print("   /ea reset - back to the defaults")
-end
-
-local function toggle(current, word)
-    if word == "on" then return true elseif word == "off" then return false end
-    return not current
-end
-
-SLASH_EMERGENCYANNOUNCE1 = "/ea"
-SLASH_EMERGENCYANNOUNCE2 = "/emergencyannounce"
-SlashCmdList.EMERGENCYANNOUNCE = function(input)
-    if not db then return end
-    local cmd, rest = (input or ""):match("^%s*(%S*)%s*(.-)%s*$")
-    cmd = cmd:lower()
-    local word = rest:lower()
-
-    if cmd == "" or cmd == "status" then
-        status()
-    elseif cmd == "help" then
-        help()
-    elseif cmd == "whisper" or cmd == "group" then
-        db[cmd] = toggle(db[cmd], word)
-        say(cmd .. " " .. onOff(db[cmd]))
-    elseif cmd == "spell" then
-        local key, w = word:match("^(%S+)%s*(%S*)$")
-        local found
-        for _, s in ipairs(SPELLS) do if s.key == key then found = s end end
-        if not found then say("unknown spell. Keys: bop, freedom, di, loh, sacrifice."); return end
-        db.spells[found.key] = toggle(db.spells[found.key], w)
-        say(spellLabel(found) .. " " .. onOff(db.spells[found.key]))
-    elseif cmd == "throttle" then
-        local n = tonumber(word)
-        if not n or n < 0 or n > 300 then say("give a number of seconds from 0 to 300."); return end
-        db.throttle = n
-        say("repeat after " .. n .. "s")
-    elseif cmd == "whispertext" or cmd == "grouptext" then
-        local field = cmd == "whispertext" and "whisperText" or "groupText"
-        if rest == "" then say(cmd .. ": " .. db[field]); return end
-        if not rest:find("{spell}", 1, true) then say("the text needs {spell} in it."); return end
-        db[field] = rest
-        say(cmd .. " set to: " .. rest)
-    elseif cmd == "test" then
-        local spell = spellLabel(SPELLS[1])
-        say("whisper would be: " .. fill(db.whisperText, { spell = spell, target = "Friend" }))
-        say("group would be: " .. fill(db.groupText, { spell = spell, target = "Friend" }))
-    elseif cmd == "reset" then
-        for k in pairs(db) do db[k] = nil end
-        copyDefaults(DEFAULTS, db)
-        say("settings reset.")
-    else
-        help()
-    end
+-- SUCCEEDED: the server confirms that same cast went off. Only now announce.
+function EA:UNIT_SPELLCAST_SUCCEEDED(_, unit, castGUID)
+    if unit ~= "player" or not readable(castGUID) or not pending or pending.guid ~= castGUID then return end
+    local p = pending
+    pending = nil
+    if GetTime() - p.at < 5 then self:Announce(p.spell, p.target, p.kind) end
 end

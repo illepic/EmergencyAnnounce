@@ -1,9 +1,24 @@
 ## Interface: 16001
 ## Title: EmergencyAnnounce
-## Notes: Whispers the person and tells your party or raid when Blessing of Protection, Blessing of Freedom or Divine Intervention actually lands. /ea for settings.
+## Notes: Announces protective cooldowns you cast on others (Blessing of Protection, Freedom, Divine Intervention, Innervate, Rebirth, Fear Ward, Soulstone) and your own defensive cooldowns (Last Stand, Shield Wall, Frenzied Regeneration). /ea for options.
 ## Author: Garreth Stonecrash
-## Version: 1.1.0
+## Version: 1.2.0
 ## SavedVariables: EmergencyAnnounceDB
 ## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/illepic/EmergencyAnnounce
 
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\AceAddon-3.0\AceAddon-3.0.xml
+Libs\AceEvent-3.0\AceEvent-3.0.xml
+Libs\AceConsole-3.0\AceConsole-3.0.xml
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
+Libs\AceLocale-3.0\AceLocale-3.0.xml
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+Libs\AceConfig-3.0\AceConfig-3.0.xml
+
+Locales\enUS.lua
+Spells.lua
 EmergencyAnnounce.lua
+Options.lua
