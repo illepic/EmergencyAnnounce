@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+- Clearer wording: spells are announced when your cast succeeds. The README explains how a cast is confirmed and what isn't checked.
+- If chat is blocked when you use one of your own defensive cooldowns, the note in your chat names just the spell.
+- The spell in each message is a chat link to the exact rank you cast. Hover or click it to see the spell's tooltip.
+- Message text can be up to 150 characters, so the filled-in message, link included, stays within the game's chat limit. Longer text is refused with a note instead of failing to send.
+- Smaller code: uses WoW: Forever's own spell, chat and addon functions directly.
+
 ## 1.3.0
 
 - Choose where the group message goes in a raid: raid chat (default), raid warning, your own subgroup only, or nothing. Options > Announce > In a raid, or `/ea raid <raid|warning|subgroup|off>`. Raid warning needs raid leader or assistant; otherwise the message goes to raid chat.

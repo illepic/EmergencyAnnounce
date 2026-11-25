@@ -1,6 +1,6 @@
 # EmergencyAnnounce
 
-A small WoW: Forever addon that announces two kinds of cooldown the moment they actually land:
+A small WoW: Forever addon that announces two kinds of cooldown the moment your cast succeeds:
 
 - **Protective cooldowns on others:** it whispers the person and tells your party or raid. Blessing of Protection, Blessing of Freedom, Divine Intervention, Innervate, Rebirth, Fear Ward, Soulstone.
 - **Your own defensive cooldowns:** it tells your party or raid. Last Stand, Shield Wall, Frenzied Regeneration, and more you can switch on.
@@ -98,7 +98,7 @@ In a raid, the whisper still reaches anyone in the raid, not just your own subgr
 | --- | --- |
 | `/ea` | Open the options page |
 | `/ea help` | List every option you can change from chat |
-| `/ea whisper [on\|off]` | Whisper the person your protective cooldown lands on |
+| `/ea whisper [on\|off]` | Whisper the person you cast your protective cooldown on |
 | `/ea group [on\|off]` | Tell your party or raid (both kinds) |
 | `/ea raid <raid\|warning\|subgroup\|off>` | Where the group message goes in a raid |
 | `/ea <spell option> [on\|off]` | Turn a spell on or off, for example `/ea innervate on` or `/ea laststand off` |
@@ -114,6 +114,8 @@ Default wording:
 | Protective cooldown on others, whisper | `{spell} on you!` |
 | Protective cooldown on others, group | `{spell} on {target}` |
 | Your own defensive cooldown, group | `Used {spell}!` |
+
+`{spell}` becomes a link to the spell, for the exact rank you cast: hover or click it in chat to see the game's own tooltip. Each message must contain `{spell}` and can be up to 150 characters, which leaves room for the link and the name within the game's chat limit.
 
 ## Limits
 

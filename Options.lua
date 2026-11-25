@@ -11,42 +11,50 @@ local L = LibStub("AceLocale-3.0"):GetLocale(ADDON)
 local ICON = "Interface\\Icons\\Ability_Warrior_BattleShout"
 local TRIM = { 0.07, 0.93, 0.07, 0.93 }   -- crop the icon's built-in border
 
-local function needsSpell(_, value)
+-- Chat messages stop at 255 bytes. Leave room for what gets filled in: the
+-- spell link (about 60 bytes) and the target's name.
+local MAX_TEXT = 150
+
+local function checkText(_, value)
     if not value:find("{spell}", 1, true) then return L["The text needs {spell} in it."] end
+    if #value > MAX_TEXT then return L["Keep the text to %d characters or fewer."]:format(MAX_TEXT) end
     return true
 end
 
 -- The game's own icon and description for a spell (its first rank).
 local function spellIcon(s)
-    local id = s.id
-    if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(id) end
-    return GetSpellTexture and GetSpellTexture(id)
+    return C_Spell.GetSpellTexture(s.id)
 end
 
 local function spellTooltip(s)
-    local text = C_Spell and C_Spell.GetSpellDescription and C_Spell.GetSpellDescription(s.id)
-    local line = L["Announce %s when it lands."]:format(EA:SpellLabel(s))
-    if type(text) == "string" and text ~= "" then return text .. "\n\n|cff999999" .. line .. "|r" end
+    local text = C_Spell.GetSpellDescription(s.id)
+    local line = L["Announce %s when your cast succeeds."]:format(EA:SpellLabel(s))
+    if text ~= "" then return text .. "\n\n|cff999999" .. line .. "|r" end
     return line
+end
+
+-- Your class's first spell of a kind ("help" = protective cooldown on others,
+-- "self" = your own defensive cooldown), as a chat link for the previews.
+local function firstOf(kind)
+    for _, s in ipairs(EA:MySpells()) do
+        if s.kind == kind then return C_Spell.GetSpellLink(s.id) end
+    end
 end
 
 -- An example spell of a kind: yours if your class has one, else any class's.
 local function exampleSpell(kind)
-    for _, s in ipairs(EA:MySpells()) do
-        if s.kind == kind then return EA:SpellLabel(s) end
-    end
+    local mine = firstOf(kind)
+    if mine then return mine end
     for _, list in pairs(ns.SPELLS) do
         for _, s in ipairs(list) do
-            if s.kind == kind then return EA:SpellLabel(s) end
+            if s.kind == kind then return C_Spell.GetSpellLink(s.id) end
         end
     end
-    return ADDON
 end
 
 -- Text in the colour the game's chat uses for that kind of message.
 local function inChatColor(chatType, text)
-    local c = ChatTypeInfo and ChatTypeInfo[chatType]
-    if not c then return text end
+    local c = ChatTypeInfo[chatType]
     local function byte(v) return math.floor(v * 255 + 0.5) end
     return ("|cff%02x%02x%02x%s|r"):format(byte(c.r), byte(c.g), byte(c.b), text)
 end
@@ -61,14 +69,6 @@ local function previewLine(field)
     local text = field == "selfText" and EA:Fill(p.selfText, exampleSpell("self"), me)
         or EA:Fill(p.groupText, exampleSpell("help"), L["Friend"])
     return inChatColor("PARTY", L["[Party] %s: %s"]:format(me, text))
-end
-
--- Your class's first spell of a kind ("help" = protective cooldown on others,
--- "self" = your own defensive cooldown), as a name for the preview.
-local function firstOf(kind)
-    for _, s in ipairs(EA:MySpells()) do
-        if s.kind == kind then return EA:SpellLabel(s) end
-    end
 end
 
 function EA:Preview()
@@ -121,9 +121,8 @@ function EA:GetOptions()
                 type = "description", order = 0, fontSize = "medium",
                 image = ICON, imageCoords = TRIM, imageWidth = 40, imageHeight = 40,
                 name = function()
-                    local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-                    local version = get and get(ADDON, "Version") or ""
-                    return L["Announces your protective cooldowns on others and your own defensive cooldowns the moment they land."]
+                    local version = C_AddOns.GetAddOnMetadata(ADDON, "Version")
+                    return L["Announces your protective cooldowns on others and your own defensive cooldowns the moment your cast succeeds."]
                         .. "\n|cff999999" .. L["Version %s"]:format(version) .. "|r"
                 end,
             },
@@ -131,7 +130,7 @@ function EA:GetOptions()
                 type = "group", inline = true, order = 1, name = L["Announce"],
                 args = {
                     whisper = { type = "toggle", order = 1, name = L["Whisper the target"],
-                        desc = L["Whisper the person your protective cooldown lands on. Never yourself, never an NPC."] },
+                        desc = L["Whisper the person you cast your protective cooldown on. Never yourself, never an NPC."] },
                     group = { type = "toggle", order = 2, name = L["Tell my group"],
                         desc = L["Announce in party, raid or instance chat. Not in a group, only the whisper is sent."] },
                     raid = { type = "select", order = 3, name = L["In a raid"],
@@ -160,18 +159,18 @@ function EA:GetOptions()
                 type = "group", inline = true, order = 4, name = L["Messages"],
                 args = {
                     placeholders = { type = "description", order = 0,
-                        name = L["{spell} is replaced with the spell you cast. {target} is replaced with the name of the person you cast it on."] .. "\n" },
+                        name = L["{spell} is replaced with a link to the spell you cast. {target} is replaced with the name of the person you cast it on."] .. "\n" },
                     whisperText = { type = "input", order = 1, width = "full", name = L["Whisper text"],
-                        desc = L["Whispered to the person your protective cooldown lands on."],
-                        validate = needsSpell },
+                        desc = L["Whispered to the person you cast your protective cooldown on."],
+                        validate = checkText },
                     whisperPreview = { type = "description", order = 2, name = function() return previewLine("whisperText") end },
                     groupText = { type = "input", order = 3, width = "full", name = L["Group text"],
-                        desc = L["Sent to your group when your protective cooldown lands on someone."],
-                        validate = needsSpell },
+                        desc = L["Sent to your group when you cast your protective cooldown on someone."],
+                        validate = checkText },
                     groupPreview = { type = "description", order = 4, name = function() return previewLine("groupText") end },
                     selfText = { type = "input", order = 5, width = "full", name = L["Defensive cooldown text"],
                         desc = L["Sent to your group when you use one of your own defensive cooldowns."],
-                        validate = needsSpell },
+                        validate = checkText },
                     selfPreview = { type = "description", order = 6, name = function() return previewLine("selfText") end },
                     test = { type = "execute", order = 7, name = L["Preview"],
                         desc = L["Show both messages in your own chat. Nothing is sent."],
@@ -204,13 +203,9 @@ end
 -- /ea opens the options page; /ea <option> [value] changes one setting;
 -- /ea help lists them.
 function EA:ChatCommand(input)
-    input = strtrim(input or "")
+    input = strtrim(input)
     if input == "" then
-        if Settings and Settings.OpenToCategory and self.categoryID then
-            Settings.OpenToCategory(self.categoryID)
-        else
-            LibStub("AceConfigDialog-3.0"):Open(ADDON)
-        end
+        Settings.OpenToCategory(self.categoryID)
         return
     end
     if input:lower() == "help" then input = "" end
