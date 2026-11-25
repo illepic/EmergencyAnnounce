@@ -57,6 +57,17 @@ You only see your own class's spells. Every rank of each spell counts.
 - **Works in any client language.** Spells are matched by the game's own spell names.
 - **Options page and profiles.** Esc > Options > AddOns > EmergencyAnnounce. Spell icons, the game's own spell descriptions on hover, and live previews of your messages in chat colours. Share one setup across characters or keep one per character.
 
+## How a cast is confirmed
+
+EmergencyAnnounce announces a spell once the game confirms your cast succeeded:
+
+1. When you press the spell, the game reports the cast and who it's aimed at. EmergencyAnnounce notes it but sends nothing yet.
+2. When the game confirms that same cast succeeded, EmergencyAnnounce announces it. The confirmation is matched to the cast by the game's own ID for that one cast, and it has to arrive within 5 seconds.
+
+If the cast fails (out of range, on cooldown, out of mana, interrupted), no confirmation comes and nothing is sent.
+
+What it doesn't check is what happens on the target afterwards. A successful cast means the spell went off, not that its effect stayed: a Rebirth still has to be accepted, and a blessing can be removed straight away. EmergencyAnnounce doesn't watch the target's buffs or read the combat log.
+
 ## Party, raid and instance groups
 
 The group message goes to whichever chat fits the group you're in at that moment:
