@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.1
+
+A livelier options page:
+
+- Each spell checkbox shows the spell's icon, and hovering it shows the game's own description of the spell.
+- A short introduction with the addon's icon and version at the top.
+- Live previews under each message box, in chat colours, showing exactly how the whisper and group messages will look as you type.
+- A clearer explanation of `{spell}` and `{target}`, at the top of the Messages section.
+- The options page and README explain where group messages go: party chat in a party, raid chat in a raid, instance chat in dungeon finder and battleground groups.
+- The Profiles page shows the current profile's name on one line.
+
 ## 1.2.0
 
 EmergencyAnnounce now announces two kinds of cooldown: protective cooldowns you cast on others, and your own defensive cooldowns.

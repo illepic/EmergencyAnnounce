@@ -30,7 +30,7 @@ Whispered to the person and announced to your group.
 
 ## Your own defensive cooldowns
 
-Announced to your group (solo, nothing is sent).
+Announced to your group. Not in a group, nothing is sent, since there's no group to tell.
 
 | Class | Spell | Option | Starts |
 | --- | --- | --- | --- |
@@ -53,10 +53,23 @@ You only see your own class's spells. Every rank of each spell is covered.
 - **Only successful casts are announced**, for both kinds. Pressing the key repeatedly, being out of range or on cooldown, or being interrupted sends nothing.
 - **No spam.** The same spell on the same person is announced at most once every 10 seconds (you can change this).
 - **Whispers go to real players only**, never to you and never to NPCs. Only protective cooldowns on others are whispered.
-- **Party, raid or instance chat** is picked for you. Solo, a protective cooldown on someone is only whispered, and your own defensive cooldowns aren't announced.
+- **Party, raid or instance chat** is picked for you. Not in a group, a protective cooldown on someone is only whispered to them, and your own defensive cooldowns aren't announced.
 - **Separate wording** for protective cooldowns on others and for your own defensive cooldowns.
 - **Works in any client language.** Spells are matched by spell ID.
-- **Options page and profiles.** Esc > Options > AddOns > EmergencyAnnounce. Share one setup across characters or keep one per character.
+- **Options page and profiles.** Esc > Options > AddOns > EmergencyAnnounce. Spell icons, the game's own spell descriptions on hover, and live previews of your messages in chat colours. Share one setup across characters or keep one per character.
+
+## Party, raid and instance groups
+
+The group message goes to whichever chat fits the group you're in at that moment:
+
+| You're in | Group message goes to |
+| --- | --- |
+| A party | Party chat |
+| A raid | Raid chat (the whole raid) |
+| A group the game made for you (dungeon finder, battleground) | Instance chat |
+| Not in a group | No group message. A protective cooldown on someone, such as a stranger you save while questing, is only whispered to them. Your own defensive cooldowns aren't announced, since there's no group to tell. |
+
+In a raid, the whisper still reaches anyone in the raid, not just your own subgroup.
 
 ## Commands
 
