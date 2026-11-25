@@ -2,6 +2,10 @@
 # GitHub release with that version's CHANGELOG section, and uploads the same
 # zip and notes to CurseForge.
 #
+# It can also be run by hand (Actions > Release > Run workflow) for a tag that
+# already exists, to publish it again with this version of the workflow. An
+# existing GitHub release is then refreshed rather than created.
+#
 # Needs the secret CF_API_KEY (a CurseForge API token); without it the
 # CurseForge upload is skipped with a warning. The file is marked with the
 # newest WoW Forever game version CurseForge lists, looked up on each release;
@@ -15,69 +19,73 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish, e.g. v1.2.2"
+        required: true
 
 permissions:
   contents: write
 
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
   release:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Read version and project from the .toc
         id: meta
-        shell: powershell
         run: |
           $toc = Get-Content EmergencyAnnounce.toc
           $version = ($toc | Select-String '^## Version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
           $project = ($toc | Select-String '^## X-Curse-Project-ID:\s*(\d+)').Matches[0].Groups[1].Value
-          $tag = "${{ github.ref_name }}"
-          if ($tag -notmatch "^v$([regex]::Escape($version))(-(alpha|beta).*)?$") {
-            throw "Tag $tag doesn't match .toc version $version"
+          if ($env:TAG -notmatch "^v$([regex]::Escape($version))(-(alpha|beta).*)?$") {
+            throw "Tag $env:TAG doesn't match .toc version $version"
           }
-          $type = if ($tag -match '-alpha') { 'alpha' } elseif ($tag -match '-beta') { 'beta' } else { 'release' }
+          $type = if ($env:TAG -match '-alpha') { 'alpha' } elseif ($env:TAG -match '-beta') { 'beta' } else { 'release' }
           "version=$version" >> $env:GITHUB_OUTPUT
           "project=$project" >> $env:GITHUB_OUTPUT
           "type=$type" >> $env:GITHUB_OUTPUT
 
       - name: Build the zip
-        shell: powershell
-        run: .\build.ps1
+        run: ./build.ps1
 
       - name: Release notes from CHANGELOG.md
-        shell: powershell
         run: |
           $v = [regex]::Escape("${{ steps.meta.outputs.version }}")
           $section = [regex]::Match((Get-Content CHANGELOG.md -Raw), "(?s)## $v\s*(.*?)(?=\r?\n## |\z)").Groups[1].Value.Trim()
           if (-not $section) { throw "No CHANGELOG.md section for ${{ steps.meta.outputs.version }}" }
           $install = "**Install:** download ``EmergencyAnnounce-${{ steps.meta.outputs.version }}.zip`` and extract it into ``World of Warcraft\_forever_\Interface\AddOns``, then restart the game. Type ``/ea`` in game for the options."
-          [IO.File]::WriteAllText("$pwd\notes.md", "$section`n`n$install`n")
+          Set-Content notes.md "$section`n`n$install" -Encoding utf8NoBOM
 
       - name: GitHub release
-        shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $zip = "dist\EmergencyAnnounce-${{ steps.meta.outputs.version }}.zip"
-          $tag = "${{ github.ref_name }}"
-          # Listing (not "gh release view") so a missing release isn't an error.
+          $zip = "dist/EmergencyAnnounce-${{ steps.meta.outputs.version }}.zip"
           $existing = @(gh release list --limit 100 --json tagName --jq '.[].tagName')
-          if ($existing -contains $tag) {
-            # Re-run of this workflow: refresh the existing release instead of failing.
-            gh release upload $tag $zip --clobber
+          if ($existing -contains $env:TAG) {
+            gh release upload $env:TAG $zip --clobber
             if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
-            gh release edit $tag --notes-file notes.md
+            gh release edit $env:TAG --notes-file notes.md
             if ($LASTEXITCODE -ne 0) { throw "gh release edit failed" }
           } else {
             $flags = @()
             if ("${{ steps.meta.outputs.type }}" -ne 'release') { $flags += '--prerelease' }
-            gh release create $tag $zip --title "EmergencyAnnounce ${{ steps.meta.outputs.version }}" --notes-file notes.md --verify-tag @flags
+            gh release create $env:TAG $zip --title "EmergencyAnnounce ${{ steps.meta.outputs.version }}" --notes-file notes.md --verify-tag @flags
             if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
           }
 
       - name: Upload to CurseForge
-        shell: powershell
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           CF_GAME_VERSION_ID: ${{ vars.CF_GAME_VERSION_ID }}
@@ -92,28 +100,29 @@ jobs:
           # Which game version to mark the file with: the override, or the newest WoW Forever one.
           $gameVersion = $env:CF_GAME_VERSION_ID
           if (-not $gameVersion) {
-            $types = Invoke-RestMethod "$api/game/version-types" -Headers $headers
+            $types = @(Invoke-RestMethod "$api/game/version-types" -Headers $headers)
             $forever = @($types | Where-Object { $_.name -match 'Forever' -or $_.slug -match 'forever' })
             if ($forever.Count -ne 1) {
-              "CurseForge game version types:"; $types | ForEach-Object { "  $($_.id)  $($_.name)  ($($_.slug))" }
+              $types | ForEach-Object { "  $($_.id)  $($_.name)  ($($_.slug))" }
               throw "Expected exactly one WoW Forever game version type, found $($forever.Count)"
             }
-            $versions = @(Invoke-RestMethod "$api/game/versions" -Headers $headers |
-              Where-Object { $_.gameVersionTypeID -eq $forever[0].id } | Sort-Object id -Descending)
-            if (-not $versions) { throw "No game versions listed for $($forever[0].name)" }
+            $all = @(Invoke-RestMethod "$api/game/versions" -Headers $headers)
+            $versions = @($all | Where-Object { $_.gameVersionTypeID -eq $forever[0].id } | Sort-Object id -Descending)
+            "WoW Forever versions on CurseForge: " + (($versions | ForEach-Object { "$($_.name) (id $($_.id))" }) -join ', ')
+            if ($versions.Count -eq 0) { throw "No game versions listed for $($forever[0].name)" }
             $gameVersion = $versions[0].id
-            "Game version: $($forever[0].name) $($versions[0].name) (id $gameVersion)"
+            "Using: $($forever[0].name) $($versions[0].name) (id $gameVersion)"
           }
 
           $metadata = @{
-            changelog     = [IO.File]::ReadAllText("$pwd\notes.md")
+            changelog     = Get-Content notes.md -Raw
             changelogType = 'markdown'
             displayName   = "EmergencyAnnounce ${{ steps.meta.outputs.version }}"
             gameVersions  = @([int]$gameVersion)
             releaseType   = "${{ steps.meta.outputs.type }}"
           } | ConvertTo-Json -Compress
-          [IO.File]::WriteAllText("$pwd\metadata.json", $metadata)
-          $zip = "dist\EmergencyAnnounce-${{ steps.meta.outputs.version }}.zip"
+          Set-Content metadata.json $metadata -Encoding utf8NoBOM
+          $zip = "dist/EmergencyAnnounce-${{ steps.meta.outputs.version }}.zip"
           $url = "https://wow.curseforge.com/api/projects/${{ steps.meta.outputs.project }}/upload-file"
           $out = curl.exe --silent --show-error --fail-with-body -H "X-Api-Token: $env:CF_API_KEY" -F "metadata=<metadata.json;type=application/json" -F "file=@$zip" $url
           if ($LASTEXITCODE -ne 0) { throw "CurseForge upload failed: $out" }
