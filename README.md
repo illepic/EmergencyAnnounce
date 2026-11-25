@@ -5,6 +5,12 @@ A small WoW: Forever addon that announces two kinds of cooldown the moment they 
 - **Protective cooldowns on others:** it whispers the person and tells your party or raid. Blessing of Protection, Blessing of Freedom, Divine Intervention, Innervate, Rebirth, Fear Ward, Soulstone.
 - **Your own defensive cooldowns:** it tells your party or raid. Last Stand, Shield Wall, Frenzied Regeneration, and more you can switch on.
 
+## Install
+
+1. Download `EmergencyAnnounce-<version>.zip` from the [Releases page](https://github.com/illepic/EmergencyAnnounce/releases/latest).
+2. Extract it into `World of Warcraft\_forever_\Interface\AddOns`, so that you end up with `AddOns\EmergencyAnnounce\EmergencyAnnounce.toc`.
+3. Restart the game, then type `/ea` to open the options.
+
 ## Protective cooldowns on others
 
 Whispered to the person and announced to your group.
