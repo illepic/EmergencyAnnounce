@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: EmergencyAnnounce
+## Notes: Whispers the person and tells your party or raid when Blessing of Protection, Blessing of Freedom or Divine Intervention actually lands. /ea for settings.
+## Author: Garreth Stonecrash
+## Version: 1.1.0
+## SavedVariables: EmergencyAnnounceDB
+## X-License: GPL-3.0-or-later
+
+EmergencyAnnounce.lua
