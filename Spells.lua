@@ -21,6 +21,8 @@ local _, ns = ...
 --   kind = "help" or "self" (see above)
 --   id   = the spell ID of its first rank
 --   on   = announced by default
+-- At login, EmergencyAnnounce.lua adds `name`: the spell's name in the
+-- player's language, looked up once from `id`.
 ns.SPELLS = {
     PALADIN = {
         { key = "bop",              kind = "help", id = 1022,    on = true  }, -- Blessing of Protection

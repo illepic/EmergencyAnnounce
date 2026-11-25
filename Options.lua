@@ -37,7 +37,7 @@ end
 -- (its first rank), then a grey line saying what the checkbox does.
 local function spellTooltip(s)
     local text = C_Spell.GetSpellDescription(s.id)
-    local line = L["Announce %s when your cast succeeds."]:format(EA:SpellLabel(s))
+    local line = L["Announce %s when your cast succeeds."]:format(s.name)
     if text ~= "" then return text .. "\n\n|cff999999" .. line .. "|r" end
     return line
 end
@@ -47,7 +47,7 @@ end
 -- nil if your class has none of that kind.
 local function firstOf(kind)
     for _, s in ipairs(EA:ClassSpells()) do
-        if s.kind == kind then return EA:SpellLink(s.id) end
+        if s.kind == kind then return EA:SpellLink(s.id, s.name) end
     end
 end
 
@@ -58,7 +58,7 @@ local function exampleSpell(kind)
     if mine then return mine end
     for _, list in pairs(ns.SPELLS) do
         for _, s in ipairs(list) do
-            if s.kind == kind then return EA:SpellLink(s.id) end
+            if s.kind == kind then return EA:SpellLink(s.id, s.name) end
         end
     end
 end
@@ -108,7 +108,7 @@ local function spellToggles(kind)
             n = n + 1
             args[s.key] = {
                 type = "toggle", order = n,
-                name = function() return EA:SpellLabel(s) end,
+                name = function() return s.name end,
                 desc = function() return spellTooltip(s) end,
                 image = function() return spellIcon(s) end,
                 imageCoords = TRIM,

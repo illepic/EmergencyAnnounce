@@ -46,10 +46,10 @@ end
 local spellName = C_Spell.GetSpellName
 
 -- A chat link to a spell ID (so its tooltip shows that exact rank) whose text
--- is just the spell's name. The game's own link text adds "(Rank 2)" for
--- spells with several ranks, which chat garbles and which we don't want shown.
-function EA:SpellLink(spellID)
-    local name = spellName(spellID)
+-- is just the spell's name (the entry's `name`). The game's own link text adds
+-- "(Rank 2)" for spells with several ranks, which chat garbles and which we
+-- don't want shown.
+function EA:SpellLink(spellID, name)
     return (C_Spell.GetSpellLink(spellID):gsub("%[.-%]", function() return "[" .. name .. "]" end, 1))
 end
 
@@ -69,11 +69,6 @@ end
 function EA:ClassSpells()
     local _, class = UnitClass("player")   -- "PALADIN", "DRUID"... in every language
     return ns.SPELLS[class] or {}
-end
-
--- A spell's name for the options page, from its entry in Spells.lua.
-function EA:SpellLabel(s)
-    return spellName(s.id)
 end
 
 -- Fill {spell} and {target} into a message. Any other {word}, such as the
@@ -108,12 +103,19 @@ function EA:OnInitialize()
     self:SetupOptions()
 end
 
--- AceAddon calls this when you log in: read your name, learn your class's
--- spell names and start listening for casts.
+-- AceAddon calls this when you log in: read your name, learn the spell names
+-- and start listening for casts.
 function EA:OnEnable()
     me = UnitName("player")
     self.playerName = me   -- for the previews in Options.lua
-    for _, s in ipairs(self:ClassSpells()) do byName[spellName(s.id)] = s end
+
+    -- Each spell's name, looked up once and kept on its entry as `name`. Every
+    -- class's spells get one, since the options previews borrow other classes'
+    -- spells as examples. Only your own class's go into byName.
+    for _, list in pairs(ns.SPELLS) do
+        for _, s in ipairs(list) do s.name = spellName(s.id) end
+    end
+    for _, s in ipairs(self:ClassSpells()) do byName[s.name] = s end
 
     -- Only your own casts: the game itself filters these events to "player",
     -- so other players' casts never reach the addon. Each event calls the
@@ -215,7 +217,7 @@ function EA:UNIT_SPELLCAST_SENT(_, target, castGUID, spellID)
     local s = entryFor(spellID)   -- the spell's entry, or false if we don't announce it
     if not s or not self.db.profile.spells[s.key] then return end
     if s.kind == "self" or not target or target == "" then target = me end
-    pending = { guid = castGUID, spell = self:SpellLink(spellID), target = target, kind = s.kind, at = GetTime() }
+    pending = { guid = castGUID, spell = self:SpellLink(spellID, s.name), target = target, kind = s.kind, at = GetTime() }
 end
 
 -- SUCCEEDED: the server confirms that same cast went off. Only now announce.

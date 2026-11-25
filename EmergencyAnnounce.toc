@@ -3,7 +3,7 @@
 ## Notes: Announces protective cooldowns you cast on others (Blessing of Protection, Freedom, Divine Intervention, Innervate, Rebirth, Fear Ward, Soulstone) and your own defensive cooldowns (Last Stand, Shield Wall, Frenzied Regeneration). /ea for options.
 ## IconTexture: Interface\Icons\Ability_Warrior_BattleShout
 ## Author: Garreth Stonecrash
-## Version: 1.3.3
+## Version: 1.3.4
 ## SavedVariables: EmergencyAnnounceDB
 ## X-License: GPL-3.0-or-later
 ## X-Website: https://github.com/illepic/EmergencyAnnounce

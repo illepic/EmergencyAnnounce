@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- Each spell's name is looked up once at login and reused for chat links, the options page and the previews.
+
 ## 1.3.3
 
 - Fixed: spells with several ranks, such as Blessing of Protection, came out garbled in chat. The spell link now shows just the spell's name, with no rank; its tooltip still shows the rank you cast.
