@@ -115,7 +115,7 @@ Default wording:
 | Protective cooldown on others, group | `{spell} on {target}` |
 | Your own defensive cooldown, group | `Used {spell}!` |
 
-`{spell}` becomes a link to the spell, for the exact rank you cast: hover or click it in chat to see the game's own tooltip. Each message must contain `{spell}` and can be up to 150 characters, which leaves room for the link and the name within the game's chat limit.
+`{spell}` becomes a link showing the spell's name, with no rank. Hover or click it in chat to see the game's own tooltip for the exact rank you cast. Each message must contain `{spell}` and can be up to 150 characters, which leaves room for the link and the name within the game's chat limit.
 
 ## Limits
 

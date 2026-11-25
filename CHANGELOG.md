@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- Fixed: spells with several ranks, such as Blessing of Protection, came out garbled in chat. The spell link now shows just the spell's name, with no rank; its tooltip still shows the rank you cast.
+
 ## 1.3.2
 
 - Only ever sees your own casts: the game now passes EmergencyAnnounce your casts alone, instead of every cast around you.

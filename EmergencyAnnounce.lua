@@ -45,6 +45,14 @@ end
 -- A spell's name in the player's language, from its spell ID.
 local spellName = C_Spell.GetSpellName
 
+-- A chat link to a spell ID (so its tooltip shows that exact rank) whose text
+-- is just the spell's name. The game's own link text adds "(Rank 2)" for
+-- spells with several ranks, which chat garbles and which we don't want shown.
+function EA:SpellLink(spellID)
+    local name = spellName(spellID)
+    return (C_Spell.GetSpellLink(spellID):gsub("%[.-%]", function() return "[" .. name .. "]" end, 1))
+end
+
 -- The Spells.lua entry for a spell ID you cast, or false if we don't announce
 -- it. Looked up by name the first time, then remembered in byID.
 local function entryFor(spellID)
@@ -207,7 +215,7 @@ function EA:UNIT_SPELLCAST_SENT(_, target, castGUID, spellID)
     local s = entryFor(spellID)   -- the spell's entry, or false if we don't announce it
     if not s or not self.db.profile.spells[s.key] then return end
     if s.kind == "self" or not target or target == "" then target = me end
-    pending = { guid = castGUID, spell = C_Spell.GetSpellLink(spellID), target = target, kind = s.kind, at = GetTime() }
+    pending = { guid = castGUID, spell = self:SpellLink(spellID), target = target, kind = s.kind, at = GetTime() }
 end
 
 -- SUCCEEDED: the server confirms that same cast went off. Only now announce.

@@ -47,7 +47,7 @@ end
 -- nil if your class has none of that kind.
 local function firstOf(kind)
     for _, s in ipairs(EA:ClassSpells()) do
-        if s.kind == kind then return C_Spell.GetSpellLink(s.id) end
+        if s.kind == kind then return EA:SpellLink(s.id) end
     end
 end
 
@@ -58,7 +58,7 @@ local function exampleSpell(kind)
     if mine then return mine end
     for _, list in pairs(ns.SPELLS) do
         for _, s in ipairs(list) do
-            if s.kind == kind then return C_Spell.GetSpellLink(s.id) end
+            if s.kind == kind then return EA:SpellLink(s.id) end
         end
     end
 end
