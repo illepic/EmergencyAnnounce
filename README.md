@@ -99,13 +99,28 @@ Default wording:
 - WoW: Forever only (interface 16001).
 - The game sometimes blocks addon chat messages. When that happens, EmergencyAnnounce prints a line in your own chat instead of sending.
 
-## Building a release zip
+## Building and releasing
+
+Build a zip locally (for testing):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
 This writes `dist\EmergencyAnnounce-<version>.zip`.
+
+To release a new version:
+
+1. Add a `## X.Y.Z` section at the top of `CHANGELOG.md` and set `## Version: X.Y.Z` in `EmergencyAnnounce.toc`.
+2. Commit and push.
+3. Tag and push the tag:
+
+   ```powershell
+   git tag -a vX.Y.Z -m "EmergencyAnnounce X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+The [Release workflow](.github/workflows/release.yml) then builds the zip, publishes the GitHub release with that version's changelog section, and uploads the same zip and notes to CurseForge, marked with the newest WoW Forever game version. Tags ending in `-beta` or `-alpha` are published as beta or alpha. To publish an existing tag again, use **Actions > Release > Run workflow** and enter the tag.
 
 ## Credits
 
