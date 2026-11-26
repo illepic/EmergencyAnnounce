@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.5
+
+- Fixed: a protective cooldown cast on yourself could whisper you and name you in the group message, instead of saying "myself". The addon now recognizes you by your character, not by how your name is written, so a surname no longer gets in the way.
+
 ## 1.3.4
 
 - Each spell's name is looked up once at login and reused for chat links, the options page and the previews.

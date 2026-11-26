@@ -11,7 +11,7 @@ globals = { "EmergencyAnnounceDB" }
 read_globals = {
     "LibStub", "CreateFrame", "issecretvalue", "strtrim", "CopyTable", "ChatTypeInfo", "Settings",
     "C_Spell", "C_ChatInfo", "C_AddOns",
-    "UnitClass", "UnitName", "GetUnitName", "UnitIsPlayer", "UnitIsGroupLeader", "UnitIsGroupAssistant",
+    "UnitClass", "UnitName", "GetUnitName", "UnitIsPlayer", "UnitIsUnit", "UnitIsGroupLeader", "UnitIsGroupAssistant",
     "IsInRaid", "IsInGroup", "GetNumGroupMembers", "GetNumSubgroupMembers", "GetTime",
     "LE_PARTY_CATEGORY_INSTANCE", "LE_PARTY_CATEGORY_HOME",
 }

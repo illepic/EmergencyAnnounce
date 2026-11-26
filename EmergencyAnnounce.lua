@@ -29,12 +29,13 @@ local byName = {}
 -- if EmergencyAnnounce doesn't announce it. Saves looking up the name again.
 local byID = {}
 
--- Your character's name, read once at login.
+-- Your character's name, read once at login. Only written into messages, never
+-- compared: who's who is decided by unit (UnitIsUnit), not by name.
 local me
 
 -- The cast you just pressed, waiting for the game to confirm it succeeded:
--- { guid = cast ID, spell = chat link, target = name, kind = "help"/"self",
---   at = time pressed }. nil when nothing is waiting.
+-- { guid = cast ID, spell = chat link, target = name (nil: on yourself),
+--   kind = "help"/"self", at = time pressed }. nil when nothing is waiting.
 local pending
 
 -- Forever can hide some values from addons; comparing a hidden value is an error.
@@ -126,12 +127,12 @@ function EA:OnEnable()
     frame:SetScript("OnEvent", function(_, event, ...) self[event](self, ...) end)
 end
 
--- The unit for a name we can see (group, target, mouseover, focus), so an NPC
--- never gets whispered and players from other realms get their full name.
+-- The unit for a name we can see (you, group, target, mouseover, focus), so an
+-- NPC never gets whispered and players from other realms get their full name.
 -- nil if no player by that name is in sight.
 local function findUnit(name)
-    -- Where a cast's target usually is, then everyone in your group.
-    local units = { "target", "mouseover", "targettarget", "focus" }
+    -- You first, then where a cast's target usually is, then everyone in your group.
+    local units = { "player", "target", "mouseover", "targettarget", "focus" }
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do units[#units + 1] = "raid" .. i end
     else
@@ -176,8 +177,8 @@ local function groupChannel(raidChoice)
 end
 
 -- Send the messages for one successful cast. spell: the spell's chat link;
--- target: who it was cast on; kind: "help" (protective cooldown on others) or
--- "self" (your own defensive cooldown).
+-- target: the name it was cast on, or nil for yourself; kind: "help"
+-- (protective cooldown on others) or "self" (your own defensive cooldown).
 function EA:Announce(spell, target, kind)
     local p = self.db.profile   -- the current profile's settings
     local channel = p.group and groupChannel(p.raid)   -- nil: no group message
@@ -189,20 +190,22 @@ function EA:Announce(spell, target, kind)
         return
     end
 
-    -- A protective cooldown on someone: whisper them, tell the group.
-    local isMe = target == me   -- cast on yourself: no whisper
+    -- A protective cooldown on someone: whisper them, tell the group. On
+    -- yourself (no target, or the unit found is you): no whisper. Decided by
+    -- unit, never by name: a cast can carry your name with your surname.
+    local unit = target and findUnit(target)
+    local mine = unit and UnitIsUnit(unit, "player")
+    local isMe = not target or (readable(mine) and mine)
+    local who = isMe and L["myself"] or target   -- the name the group message shows
     local ok = true                              -- false once any message fails
-    if p.whisper and not isMe then
-        local unit = findUnit(target)
-        if unit then
-            ok = send(self:Fill(p.whisperText, spell, target), "WHISPER", GetUnitName(unit, true)) and ok
-        end
+    if p.whisper and unit and not isMe then
+        ok = send(self:Fill(p.whisperText, spell, target), "WHISPER", GetUnitName(unit, true)) and ok
     end
     if channel then
-        ok = send(self:Fill(p.groupText, spell, isMe and L["myself"] or target), channel) and ok
+        ok = send(self:Fill(p.groupText, spell, who), channel) and ok
     end
     if not ok then
-        self:Print(L["Chat was blocked, so %s on %s wasn't announced."]:format(spell, target))
+        self:Print(L["Chat was blocked, so %s on %s wasn't announced."]:format(spell, who))
     end
 end
 
@@ -216,7 +219,8 @@ function EA:UNIT_SPELLCAST_SENT(_, target, castGUID, spellID)
     if not (readable(target) and readable(castGUID) and readable(spellID)) then return end
     local s = entryFor(spellID)   -- the spell's entry, or false if we don't announce it
     if not s or not self.db.profile.spells[s.key] then return end
-    if s.kind == "self" or not target or target == "" then target = me end
+    -- Your own defensive cooldowns, and casts sent without a target, are on you.
+    if s.kind == "self" or target == "" then target = nil end
     pending = { guid = castGUID, spell = self:SpellLink(spellID, s.name), target = target, kind = s.kind, at = GetTime() }
 end
 
